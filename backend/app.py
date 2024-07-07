@@ -3,6 +3,7 @@ from flask_cors import CORS, cross_origin
 from flask import Flask, request, jsonify
 import pandas as pd
 import spacy
+import csv
 
 
 app = Flask(__name__)
@@ -22,13 +23,10 @@ def upload_file():
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
     if file:
-        # Read the CSV file into a DataFrame
         df = pd.read_csv(file)
 
-        # Process the DataFrame (Example: Add nlp_output column)
         df['nlp_output'] = df.apply(lambda row: pos_tagging(row['Name'], row['Description']), axis=1)
 
-        # Convert DataFrame back to JSON
         response = jsonify(df.to_dict(orient='records'))
         return response
 
@@ -40,12 +38,11 @@ def save_data():
     email = request.form.get('Email')
     nlp_output = request.form.get('NLP_Output')
 
-    if not all([username, email, nlp_output]):
+    if not all([ nlp_output]):
         return jsonify({'error': 'Missing required fields'}), 400
 
     data = {
-        'Username': username,
-        'Email': email,
+  
         'NLP_Output': nlp_output
     }
 
@@ -65,12 +62,11 @@ def login():
     #    return jsonify({'error': 'Invalid credentials'}), 401
 
 def save_to_csv(data, filename='user_data.csv'):
-    fieldnames = ['Username', 'Email', 'NLP_Output']  # Define field names in your CSV
+    fieldnames = ['NLP_Output']  # Define field names in your CSV
 
     with open(filename, mode='a', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
 
-        # Write header only if the file is empty
         if file.tell() == 0:
             writer.writeheader()
 

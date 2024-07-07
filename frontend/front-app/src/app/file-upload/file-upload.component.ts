@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import axios from 'axios';
 import { HttpClient, HttpClientModule, HttpHeaders } from '@angular/common/http';
+import { filter } from 'rxjs/operators';
 
 import { AuthService } from '../auth.service';
 import { CommonModule } from '@angular/common';
@@ -8,6 +9,10 @@ import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.component';
+import { MatDialog } from '@angular/material/dialog';
+import { Router, NavigationStart } from '@angular/router';
+import { Observable } from 'rxjs';
 @Component({
   selector: 'app-file-upload',
   standalone: true,
@@ -21,7 +26,17 @@ export class FileUploadComponent {
   isLoading: boolean = false; 
   displayedColumns: string[] = ['Name', 'Description', 'NlpOutput'];
 
-  constructor(private http: HttpClient,private authService: AuthService) {}
+  constructor(private http: HttpClient,private authService: AuthService,public dialog: MatDialog,private router: Router) 
+
+{
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationStart)
+    ).subscribe((event: any) => {
+      if (this.isDirty) {
+        this.canDeactivate();
+      }
+    });
+  }
 
   onFileSelected(event: any) {
     this.file = event.target.files[0];
@@ -41,6 +56,7 @@ export class FileUploadComponent {
           this.data = response;
           console.log('Upload success', response);
           this.isLoading = false;
+          this.markDirty();
         },
         error => {
           console.error('Upload failed', error);
@@ -51,6 +67,29 @@ export class FileUploadComponent {
   markDirty() {
     this.isDirty = true;
   }
+
+  @HostListener('window:beforeunload', ['$event'])
+  unloadNotification($event: any) {
+    if (this.isDirty) {
+      $event.returnValue = true;
+      return 'You have unsaved changes! Are you sure you want to leave?';
+    }
+    return false;
+  }
+
+  canDeactivate(): boolean | Observable<boolean> {
+    if (!this.isDirty) {
+      return true;
+    }
+    
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      width: '1000px',
+      data: 'You have unsaved changes! Are you sure you want to leave?'
+    });
+
+    return dialogRef.afterClosed();
+  }
+    
 
   async saveData() {
     try {
@@ -67,3 +106,4 @@ export class FileUploadComponent {
   }
 
 }
+
